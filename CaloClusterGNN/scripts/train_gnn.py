@@ -1,0 +1,170 @@
+#!/usr/bin/env python3
+"""
+Train a GNN for calorimeter edge classification.
+
+Usage:
+    python3 scripts/train_gnn.py --config configs/default.yaml
+    python3 scripts/train_gnn.py --config configs/default.yaml --epochs 20 --device cpu
+"""
+
+import argparse
+import json
+import subprocess
+import sys
+import time
+from datetime import datetime
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+import torch
+import yaml
+
+from src.data.dataset import CaloGraphDataset
+from src.data.normalization import load_stats, normalize_graph
+from src.models import build_model
+from src.training.losses import compute_class_weights
+from src.training.trainer import Trainer
+
+
+def load_split_files(split_path):
+    """Load file stems from a split file."""
+    with open(split_path) as f:
+        return [line.strip() for line in f if line.strip()]
+
+
+def get_git_hash():
+    """Get current git hash, or 'unknown'."""
+    try:
+        return subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"],
+            stderr=subprocess.DEVNULL,
+        ).decode().strip()
+    except Exception:
+        return "unknown"
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Train GNN for calorimeter clustering")
+    parser.add_argument("--config", type=str, default="configs/default.yaml")
+    parser.add_argument("--device", type=str, default=None,
+                        help="Device: 'cpu', 'cuda', or 'cuda:0'. Auto-detects if omitted.")
+    parser.add_argument("--epochs", type=int, default=None, help="Override max epochs")
+    parser.add_argument("--batch-size", type=int, default=None, help="Override batch size")
+    parser.add_argument("--run-name", type=str, default=None, help="Run directory name")
+    parser.add_argument("--resume", type=str, default=None,
+                        help="Path to checkpoint to resume from (loads model weights only, "
+                             "resets optimizer for staged training)")
+    args = parser.parse_args()
+
+    # Load config
+    with open(args.config) as f:
+        cfg = yaml.safe_load(f)
+
+    train_cfg = cfg["train"]
+    if args.epochs is not None:
+        train_cfg["epochs"] = args.epochs
+    if args.batch_size is not None:
+        train_cfg["batch_size"] = args.batch_size
+
+    # Device
+    if args.device:
+        device = torch.device(args.device)
+    elif torch.cuda.is_available():
+        device = torch.device("cuda")
+    else:
+        device = torch.device("cpu")
+    print(f"Device: {device}")
+
+    # Run directory
+    run_name = args.run_name or datetime.now().strftime("%Y%m%d_%H%M%S")
+    run_dir = Path(cfg["output"]["run_dir"]) / run_name
+    run_dir.mkdir(parents=True, exist_ok=True)
+
+    # Save config + metadata
+    meta = {
+        "git_hash": get_git_hash(),
+        "config_path": args.config,
+        "device": str(device),
+        "timestamp": datetime.now().isoformat(),
+    }
+    with open(run_dir / "config.yaml", "w") as f:
+        yaml.dump(cfg, f, default_flow_style=False)
+    with open(run_dir / "metadata.json", "w") as f:
+        json.dump(meta, f, indent=2)
+
+    # Load datasets — preload into memory to avoid per-file I/O bottleneck
+    processed_dir = cfg["data"]["processed_dir"]
+    train_files = load_split_files(cfg["data"]["splits"]["train"])
+    val_files = load_split_files(cfg["data"]["splits"]["val"])
+
+    # Use packed files if available (single torch.load vs 29K individual loads)
+    train_packed = Path(processed_dir) / "train.pt"
+    val_packed = Path(processed_dir) / "val.pt"
+
+    print(f"Loading train dataset from {processed_dir}")
+    train_dataset = CaloGraphDataset(
+        processed_dir, file_list=train_files, preload=True,
+        packed_path=train_packed if train_packed.exists() else None,
+    )
+    print(f"Loading val dataset from {processed_dir}")
+    val_dataset = CaloGraphDataset(
+        processed_dir, file_list=val_files, preload=True,
+        packed_path=val_packed if val_packed.exists() else None,
+    )
+
+    print(f"  Train: {len(train_dataset)} graphs")
+    print(f"  Val:   {len(val_dataset)} graphs")
+
+    if len(train_dataset) == 0:
+        print("ERROR: No training graphs found. Run build_graphs.py first.")
+        sys.exit(1)
+
+    # Compute class weights before normalization
+    cw = compute_class_weights(train_dataset)
+    pos_weight = cw["pos_weight"]
+    print(f"  Class balance: {cw['n_pos']} pos, {cw['n_neg']} neg "
+          f"(pos_weight={pos_weight.item():.3f})")
+
+    # Apply normalization in-place to cached data
+    stats_path = cfg["data"]["normalization_stats"]
+    print(f"Loading normalization stats from {stats_path}")
+    stats = load_stats(stats_path)
+    for data in train_dataset._cache:
+        normalize_graph(data, stats)
+    for data in val_dataset._cache:
+        normalize_graph(data, stats)
+
+    # Build model
+    model = build_model(cfg)
+    n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"\nModel: {cfg['model']['name']}")
+    print(f"  Parameters: {n_params:,}")
+    print(f"  Hidden dim: {cfg['model']['hidden_dim']}")
+    print(f"  MP layers:  {cfg['model']['n_mp_layers']}")
+
+    # Resume from checkpoint (model weights only — optimizer resets for staged training)
+    if args.resume:
+        ckpt = torch.load(args.resume, weights_only=False, map_location=device)
+        model.load_state_dict(ckpt["model_state_dict"])
+        print(f"  Resumed weights from {args.resume} "
+              f"(epoch {ckpt['epoch']}, val F1={ckpt['val_f1']:.4f})")
+
+    # Train
+    trainer = Trainer(
+        model=model,
+        train_dataset=train_dataset,
+        val_dataset=val_dataset,
+        cfg=train_cfg,
+        pos_weight=pos_weight,
+        device=device,
+        run_dir=run_dir,
+    )
+
+    print("\n" + "=" * 70)
+    trainer.fit()
+    print("=" * 70)
+
+
+if __name__ == "__main__":
+    main()
