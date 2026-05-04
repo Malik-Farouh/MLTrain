@@ -149,6 +149,36 @@ Five steps, end to end. All paths are relative to `CaloClusterGNN/`.
     python3 scripts/failure_audit.py
     ```
 
+### Exporting a Trained Model to ONNX
+
+Two artifacts ship to deployment per model: the `.onnx` itself and a
+small JSON sidecar containing the train-split z-score normalisation
+stats (so the C++ side doesn't need a LibTorch dependency to read 28
+floats). Both are stamped with `metadata_props` carrying
+`model_version`, `node_features`, `edge_features`. The C++ session
+loader asserts these against FHiCL expectations at job start, so any
+silent layout drift after a retraining is caught loudly.
+
+```bash
+# After training a CCN run (the production model)
+python3 scripts/export_onnx.py --model ccn   # -> outputs/onnx/calo_cluster_net_v2_stage1.onnx
+python3 scripts/export_norm_stats.py         # -> outputs/onnx/...norm.json
+
+# Or for SimpleEdgeNet
+python3 scripts/export_onnx.py --model sen   # -> outputs/onnx/simple_edge_net_v2.onnx
+
+# Validate PyTorch <-> ONNX Runtime parity on the full val set
+python3 scripts/validate_onnx.py --model ccn   # max abs diff <= 1e-5, 0 threshold flips at tau=0.20
+python3 scripts/validate_onnx.py --model sen   # max abs diff <= 5e-3, 0 threshold flips at tau=0.26
+```
+
+`scripts/export_onnx.py` knows the per-model preset (checkpoint
+path, output path, `model_version` string) and ships the
+`metadata_props` keys in one call. To ship a new model release,
+update Mu2e/Offline `Offline/CaloCluster/data/` (or the configured
+Mu2e data area) with the new artifact, bump the FHiCL
+`expectedModelVersion`, and re-run the C++ parity test.
+
 ### Frozen Recipe Values
 
 These match the deployment defaults (see Deployment below). If you
@@ -192,6 +222,15 @@ Trained `.onnx` artifacts live in the Mu2e data area and are picked
 up by `art::ConfigFileLookupPolicy` at job start. The deployment-side
 parity gate (Python pipeline vs C++ Offline pipeline, byte-exact on
 cluster labels) lives in the Mu2e/Offline PR for this work.
+
+## Acknowledgements
+
+Development of this training pipeline was assisted by Anthropic's
+Claude (Claude Code). All scientific decisions, hyperparameter
+choices, validation results, and the v1->v2 truth-definition
+campaign are the author's own work; Claude was used as a coding
+assistant for implementation, refactoring, code review, and
+documentation drafting.
 
 ## License
 
