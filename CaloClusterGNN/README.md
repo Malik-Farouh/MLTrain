@@ -48,7 +48,7 @@ Two short pointers:
   energy in the same disk. This recovers true shower membership for
   hits split across crystals during showering. Requires the
   `calomcsim.ancestorSimIds` branch added in
-  [Mu2e/EventNtuple #](https://github.com/Mu2e/EventNtuple/pulls).
+  [Mu2e/EventNtuple#366](https://github.com/Mu2e/EventNtuple/pull/366).
   See `src/data/truth_labels_primary.py`.
 
 ## For the Interested (Re)Trainer
@@ -205,7 +205,7 @@ change them you'll want to re-tune and re-evaluate:
 
 The EventNtuples for v2 require the `calomcsim.ancestorSimIds`
 branch added in
-[Mu2e/EventNtuple#TBD](https://github.com/Mu2e/EventNtuple/pulls).
+[Mu2e/EventNtuple#366](https://github.com/Mu2e/EventNtuple/pull/366).
 
 ## Deployment
 
