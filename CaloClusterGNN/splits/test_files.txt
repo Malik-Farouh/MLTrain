@@ -1,0 +1,8 @@
+/exp/mu2e/data/users/wzhou2/GNN/root_files_v2/nts.wzhou2.description.ancestry_v2.001430_00000003.root
+/exp/mu2e/data/users/wzhou2/GNN/root_files_v2/nts.wzhou2.description.ancestry_v2.001430_00000001.root
+/exp/mu2e/data/users/wzhou2/GNN/root_files_v2/nts.wzhou2.description.ancestry_v2.001430_00000198.root
+/exp/mu2e/data/users/wzhou2/GNN/root_files_v2/nts.wzhou2.description.ancestry_v2.001430_00000121.root
+/exp/mu2e/data/users/wzhou2/GNN/root_files_v2/nts.wzhou2.description.ancestry_v2.001430_00000012.root
+/exp/mu2e/data/users/wzhou2/GNN/root_files_v2/nts.wzhou2.description.ancestry_v2.001430_00000019.root
+/exp/mu2e/data/users/wzhou2/GNN/root_files_v2/nts.wzhou2.description.ancestry_v2.001430_00000027.root
+/exp/mu2e/data/users/wzhou2/GNN/root_files_v2/nts.wzhou2.description.ancestry_v2.001430_00000037.root
