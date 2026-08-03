@@ -4,7 +4,6 @@ This directory contains a suite of notebooks dedicated to evaluating an independ
 
 ## File Walkthrough
 
-* **00_TrkQualTrain_main.ipynb:** The master training pipeline. It handles raw feature loading from ROOT files, balances sample weights, tunes tree hyperparameters, trains the final 500-tree BDT ensemble, and saves the model as `.joblib`.
 * **01_data_perturbation.ipynb:** Responsible for creating and perturbing all of the required data sets.
 * **02_factive_nactive_analysis.ipynb:** Investigates the physical properties of track hits, evaluates feature correlations, and isolates the impact of active hit fractions on background rejection.
 * **03_momerr_robustness_analysis.ipynb:** A targeted stress-test notebook that subjects the model to severe ±10% and extreme ±50% momentum error variations to evaluate algorithmic stability.
