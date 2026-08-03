@@ -1,12 +1,11 @@
-This repository documents an exhaustive machine learning investigation focused on engineering an independent **XGBoost gradient-boosted decision tree (BDT)** classifier. This model serves as a high-precision, production-grade cross-verification framework running alongside the existing Artificial Neural Network (ANN) model currently deployed in the Mu2e experiment's offline track reconstruction pipeline.
+# Perturbation Analysis Study
 
-The core objective of this framework is to classify track quality using precise measurements, isolate true signal conversion electrons ($CE$), and reject all the background signals.
+This directory contains a suite of notebooks dedicated to evaluating an independent XGBoost gradient-boosted decision tree (BDT) classifier for the Mu2e tracking quality verification pipeline. The focus is to analyze algorithmic stability and domain adaptation under various systematic track features and data distortions.
 
-##  Repository Architecture & Modular Walkthrough
-The codebase has been split into 4 dedicated, independent research chapters to prevent memory leaks and variable collisions:
+## File Walkthrough
 
-*   **`00_TrkQualTrain_main.ipynb`**: The master training pipeline. Handles raw feature loading from ROOT files, balances sample weights, tunes tree hyperparameters, trains the final 500-tree BDT ensemble, and save the model as .joblib for offline use.
-*   **`01_data_perturbation.ipynb`**: The file that is responsible for creating and perturbing all of the required data sets.
-*   **`02_factive_nactive_analysis.ipynb`**: Investigates the physical properties of track hits. Evaluates feature correlations and isolates the impact of `factive`  and `nactive` on the model's background rejection capabilities.
-*   **`03_momerr_robustness_analysis.ipynb`**: A targeted stress-test notebook. Subjects the model to severe $\pm10\%$ and extreme $\pm50\%$ momentum error systematic variations to evaluate algorithmic stability under tracking resolution degradation.
-*   **`04_all_data_perturbation_analysis.ipynb`**: The global analysis file. Compiles all perturbed data streams into a unified evaluation framework to compare static cut strategies against adaptive dynamic domain adaptation.
+* **00_TrkQualTrain_main.ipynb:** The master training pipeline. It handles raw feature loading from ROOT files, balances sample weights, tunes tree hyperparameters, trains the final 500-tree BDT ensemble, and saves the model as `.joblib`.
+* **01_data_perturbation.ipynb:** Responsible for creating and perturbing all of the required data sets.
+* **02_factive_nactive_analysis.ipynb:** Investigates the physical properties of track hits, evaluates feature correlations, and isolates the impact of active hit fractions on background rejection.
+* **03_momerr_robustness_analysis.ipynb:** A targeted stress-test notebook that subjects the model to severe ±10% and extreme ±50% momentum error variations to evaluate algorithmic stability.
+* **04_all_data_perturbation_analysis.ipynb:** The global analysis file. It compiles all perturbed data streams into a unified evaluation framework to compare static cut strategies against adaptive dynamic domain adaptation.
